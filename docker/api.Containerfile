@@ -41,9 +41,20 @@ RUN echo '#!/bin/sh' > /etc/profile.d/fnm.sh \
 ENV BASH_ENV=/etc/profile.d/fnm.sh
 # Also, have the talawa login shell source it explicitly by appending to its .bashrc
 RUN echo "source /etc/profile.d/fnm.sh" >> /home/talawa/.bashrc
+# Install unzip for fnm extraction (used in next stage)
+RUN apt-get update && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
 USER talawa
-# Installs fnm.
-RUN curl -fsSL --proto '=https' --tlsv1.2 https://fnm.vercel.app/install | bash -s -- --skip-shell 
+# Installs fnm from GitHub release (fnm.vercel.app can return 500).
+ARG FNM_VERSION=1.38.1
+RUN mkdir -p /home/talawa/.local/share/fnm \
+    && curl -fsSL --proto '=https' --tlsv1.2 \
+        "https://github.com/Schniz/fnm/releases/download/v${FNM_VERSION}/fnm-linux.zip" \
+        -o /tmp/fnm.zip \
+    && unzip -j /tmp/fnm.zip -d /home/talawa/.local/share/fnm \
+    && rm /tmp/fnm.zip \
+    && chmod +x /home/talawa/.local/share/fnm/fnm \
+    && /home/talawa/.local/share/fnm/fnm --version
 ENV PATH=/home/talawa/.local/share/fnm:${PATH}
 # Install Node.js 24.12.0 LTS using fnm
 RUN /home/talawa/.local/share/fnm/fnm install 24.12.0 && /home/talawa/.local/share/fnm/fnm default 24.12.0
